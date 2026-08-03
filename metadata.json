@@ -1,0 +1,6 @@
+{
+  "name": "Quebra-Cabeça Interativo",
+  "description": "Crie, jogue e faça o download de quebra-cabeças personalizados a partir de imagens. Oferece níveis fácil, médio e difícil, com suporte a download em arquivo HTML único para uso offline.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
