@@ -23,6 +23,8 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
   const [showGuideImage, setShowGuideImage] = useState<boolean>(true);
   const [showNumbers, setShowNumbers] = useState<boolean>(false);
   const [guideOpacity, setGuideOpacity] = useState<number>(0);
+  const [showCompletionMessage, setShowCompletionMessage] = useState<boolean>(false);
+  const [completionMessage, setCompletionMessage] = useState<string>('');
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string>('');
 
@@ -115,6 +117,8 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
       showNumbers,
       guideOpacity,
       showGuideImage,
+      showCompletionMessage,
+      completionMessage,
     });
   };
 
@@ -298,6 +302,34 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
                     <span className="text-[10px] text-slate-400">Marca d'água no fundo</span>
                   </div>
                 </label>
+
+                <label className="flex items-center gap-2.5 p-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showCompletionMessage}
+                    onChange={(e) => setShowCompletionMessage(e.target.checked)}
+                    className="w-4 h-4 accent-sky-500 rounded text-sky-500"
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-700">Exibir texto explicativo após montagem</span>
+                    <span className="text-[10px] text-slate-400">Texto de devolutiva ao finalizar</span>
+                  </div>
+                </label>
+
+                {showCompletionMessage && (
+                  <div className="pt-1.5 space-y-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Texto de devolutiva:
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Escreva aqui o texto explicativo ou mensagem que aparecerá na caixa de Parabéns..."
+                      value={completionMessage}
+                      onChange={(e) => setCompletionMessage(e.target.value)}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all shadow-sm resize-none"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

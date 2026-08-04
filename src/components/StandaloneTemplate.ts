@@ -10,7 +10,8 @@ export function generateStandaloneHTML(
   difficultyLabel: string,
   showNumbersByDefault: boolean,
   aspectRatio: number,
-  showGuideImage: boolean = true
+  showGuideImage: boolean = true,
+  completionMessage?: string
 ): string {
   // Determine a nice default height for the puzzle based on aspect ratio
   // If the image is wide, the height is smaller. If tall, larger.
@@ -128,8 +129,10 @@ export function generateStandaloneHTML(
           </div>
           <div>
             <h3 class="text-lg font-bold text-emerald-800">Parabéns!</h3>
-            <p class="text-emerald-700 text-xs font-semibold">
-              Você montou o quebra-cabeça com sucesso!
+            <p class="text-emerald-700 text-xs font-semibold whitespace-pre-wrap">
+              ${completionMessage && completionMessage.trim()
+                ? completionMessage.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                : 'Você montou o quebra-cabeça com sucesso!'}
             </p>
           </div>
           <div class="flex gap-2 justify-center pt-1">

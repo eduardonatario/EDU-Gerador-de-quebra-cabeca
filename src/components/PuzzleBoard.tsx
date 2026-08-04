@@ -330,6 +330,10 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
     if (settings.difficulty === 'facil') label = 'Fácil';
     if (settings.difficulty === 'medio') label = 'Médio';
 
+    const customMsg = settings.showCompletionMessage && settings.completionMessage?.trim()
+      ? settings.completionMessage.trim()
+      : undefined;
+
     const htmlContent = generateStandaloneHTML(
       imageUrl,
       rows,
@@ -337,7 +341,8 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
       label,
       showNumbers,
       aspectRatioValue,
-      settings.showGuideImage
+      settings.showGuideImage,
+      customMsg
     );
 
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
@@ -508,8 +513,10 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-emerald-800">Parabéns!</h3>
-                  <p className="text-emerald-700 text-xs font-semibold">
-                    Você montou o quebra-cabeça com sucesso!
+                  <p className="text-emerald-700 text-xs font-semibold whitespace-pre-wrap">
+                    {settings.showCompletionMessage && settings.completionMessage?.trim()
+                      ? settings.completionMessage.trim()
+                      : 'Você montou o quebra-cabeça com sucesso!'}
                   </p>
                 </div>
                 <div className="flex gap-2 justify-center pt-1">

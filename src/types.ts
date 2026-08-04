@@ -31,4 +31,6 @@ export interface PuzzleSettings {
   showNumbers: boolean;
   guideOpacity: number; // 0 to 1
   showGuideImage: boolean;
+  showCompletionMessage?: boolean;
+  completionMessage?: string;
 }
