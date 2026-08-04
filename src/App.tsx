@@ -38,8 +38,7 @@ export default function App() {
       </main>
 
       {/* Rodapé */}
-      <footer className="py-6 px-4 text-center text-xs text-slate-400">
-        <p>© Gerador de quebra-cabeça • Atividade Offline</p>
+      <footer className="py-4 px-4 text-center text-xs text-slate-400">
       </footer>
     </div>
   );

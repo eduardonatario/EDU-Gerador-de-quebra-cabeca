@@ -20,6 +20,7 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
   const [customRows, setCustomRows] = useState<number>(3);
   const [customCols, setCustomCols] = useState<number>(3);
   const [showGridLines, setShowGridLines] = useState<boolean>(true);
+  const [showGuideImage, setShowGuideImage] = useState<boolean>(true);
   const [showNumbers, setShowNumbers] = useState<boolean>(false);
   const [guideOpacity, setGuideOpacity] = useState<number>(0);
   const [dragActive, setDragActive] = useState<boolean>(false);
@@ -113,6 +114,7 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
       showGridLines,
       showNumbers,
       guideOpacity,
+      showGuideImage,
     });
   };
 
@@ -125,60 +127,54 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
           <h2 className="text-2xl font-bold text-slate-800">
             Gerador de quebra-cabeça
           </h2>
-          <p className="text-slate-500 text-xs max-w-md mx-auto">
-            Insira um link.
-          </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="max-w-2xl mx-auto space-y-6">
           
-          {/* Lado Esquerdo: Carregamento de Imagem (7 Colunas) */}
-          <div className="lg:col-span-7 space-y-6">
-            <div>
-              <h3 className="text-md font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                <ImageIcon size={18} className="text-sky-600" /> 1. Escolha a Imagem
-              </h3>
-              
-              {/* Abas e Métodos de Upload */}
-              <div className="space-y-4">
-                
-                {/* Colagem de URL */}
-                <form onSubmit={handleUrlSubmit} className="flex gap-2">
-                  <div className="relative flex-grow">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                      <LinkIcon size={16} />
-                    </span>
-                    <input
-                      type="url"
-                      placeholder="Ou cole a URL de qualquer imagem da internet..."
-                      value={inputUrl}
-                      onChange={(e) => setInputUrl(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all shadow-sm"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-xl border border-slate-200 transition-all cursor-pointer shadow-sm"
-                  >
-                    Carregar
-                  </button>
-                </form>
+          {/* 1. Escolha a Imagem */}
+          <div>
+            <h3 className="text-md font-semibold text-slate-800 mb-3 flex items-center gap-2">
+              <ImageIcon size={18} className="text-sky-600" /> 1. Escolha a Imagem
+            </h3>
+            
+            {/* Abas e Métodos de Upload */}
+            <div className="space-y-4">
+              {/* Colagem de URL */}
+              <form onSubmit={handleUrlSubmit} className="flex gap-2">
+                <div className="relative flex-grow">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                    <LinkIcon size={16} />
+                  </span>
+                  <input
+                    type="url"
+                    placeholder="Ou cole a URL de qualquer imagem da internet..."
+                    value={inputUrl}
+                    onChange={(e) => setInputUrl(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all shadow-sm"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-xl border border-slate-200 transition-all cursor-pointer shadow-sm"
+                >
+                  Carregar
+                </button>
+              </form>
 
-                {uploadError && (
-                  <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
-                    <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
-                    <span>{uploadError}</span>
-                  </div>
-                )}
-              </div>
+              {uploadError && (
+                <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+                  <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
             </div>
 
-            {/* Galeria de Modelos Prontos */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
+            {/* Exemplos de Imagem lado a lado (3 colunas) */}
+            <div className="pt-4">
+              <div className="flex items-center justify-between mb-2">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Modelos de Imagem Disponíveis</h4>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 {PRESET_IMAGES.map((img) => (
                   <button
                     key={img.id}
@@ -187,26 +183,23 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
                       setInputUrl('');
                       setUploadError('');
                     }}
-                    className={`group relative text-left rounded-xl overflow-hidden border transition-all duration-300 flex flex-col cursor-pointer ${
+                    className={`group relative text-left rounded-xl overflow-hidden border p-1.5 transition-all duration-200 cursor-pointer bg-white flex flex-col ${
                       selectedImage === img.url
-                        ? 'border-sky-500 ring-2 ring-sky-500/20 scale-[0.98]'
+                        ? 'border-sky-500 ring-2 ring-sky-500/20 bg-sky-50/30'
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="relative aspect-video w-full overflow-hidden bg-slate-100">
+                    <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-slate-100 mb-1.5">
                       <img
                         src={img.url}
                         alt={img.name}
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
-                      <span className="absolute top-1.5 left-1.5 bg-white/95 text-[9px] text-sky-700 px-1.5 py-0.5 rounded-md font-semibold border border-slate-200 shadow-sm">
-                        {img.category}
-                      </span>
                     </div>
-                    <div className="p-2 bg-slate-50/50 flex-grow flex flex-col justify-between border-t border-slate-100">
-                      <p className="text-xs font-semibold text-slate-700 line-clamp-1">{img.name}</p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">Por {img.author}</p>
+                    <div className="min-w-0 flex-1 px-0.5">
+                      <p className="text-xs font-semibold text-slate-700 truncate">{img.name}</p>
+                      <p className="text-[10px] text-slate-400 truncate">Por {img.author}</p>
                     </div>
                   </button>
                 ))}
@@ -214,29 +207,28 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
             </div>
           </div>
 
-          {/* Lado Direito: Ajustes e Configurações (5 Colunas) */}
-          <div className="lg:col-span-5 space-y-6 flex flex-col justify-between">
-            
-            <div className="space-y-6">
-              {/* Nível de Dificuldade */}
+          {/* Itens 2 (Dificuldade + Imagem Selecionada) e 3 (Opções de Ajuda) lado a lado */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            {/* 2. Dificuldade + Imagem Selecionada */}
+            <div className="space-y-4">
               <div>
-                <h3 className="text-md font-semibold text-slate-800 mb-3">
-                  2. Dificuldade
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    2. Dificuldade
+                  </h3>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   {(['facil', 'medio'] as Difficulty[]).map((level) => (
                     <button
                       key={level}
                       onClick={() => handleDifficultyChange(level)}
-                      className={`py-3 px-2 rounded-xl border text-sm font-semibold capitalize transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                      className={`py-2.5 px-2 rounded-xl border text-xs font-semibold capitalize transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
                         difficulty === level
                           ? 'border-sky-500 bg-sky-50 text-sky-700 shadow-md shadow-sky-100'
                           : 'border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-700 hover:border-slate-300'
                       }`}
                     >
-                      <span>
-                        {level === 'facil' ? 'Fácil' : 'Médio'}
-                      </span>
+                      <span>{level === 'facil' ? 'Fácil' : 'Médio'}</span>
                       <span className="text-[10px] font-mono text-slate-400 font-normal">
                         {level === 'facil' ? '3x3 (9 pçs)' : '4x4 (16 pçs)'}
                       </span>
@@ -245,57 +237,81 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
                 </div>
               </div>
 
-              {/* Opções de Auxílio de Partida */}
+              {/* Imagem Selecionada (abaixo dos botões fácil e médio) */}
               <div>
-                <h3 className="text-sm font-semibold text-slate-800 mb-3">
-                  3. Opções Iniciais de Ajuda
-                </h3>
-                <div className="space-y-2.5">
-                  <label className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={showGridLines}
-                      onChange={(e) => setShowGridLines(e.target.checked)}
-                      className="w-4 h-4 accent-sky-500 rounded text-sky-500"
+                <div className="flex items-center justify-between mb-1.5">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Imagem Selecionada</h4>
+                </div>
+                <div className="flex gap-3 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-white border border-slate-200 flex-shrink-0">
+                    <img
+                      src={selectedImage}
+                      alt="Preview"
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
                     />
-                    <div className="flex flex-col">
-                      <span className="text-xs font-semibold text-slate-700">Mostrar bordas das células</span>
-                      <span className="text-[10px] text-slate-400">Desenha linhas pontilhadas como guia no tabuleiro</span>
-                    </div>
-                  </label>
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <p className="text-xs font-semibold text-slate-700 truncate">
+                      {PRESET_IMAGES.find((img) => img.url === selectedImage)?.name || 'Imagem da Internet'}
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                      {PRESET_IMAGES.find((img) => img.url === selectedImage)?.author
+                        ? `Por ${PRESET_IMAGES.find((img) => img.url === selectedImage)?.author}`
+                        : 'URL Personalizada'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Visualização Prévia da Imagem Selecionada */}
-            <div className="pt-6 border-t border-slate-200 space-y-4">
-              <div className="flex gap-4 items-center bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                <div className="w-16 h-16 rounded-xl overflow-hidden bg-white border border-slate-200 flex-shrink-0">
-                  <img
-                    src={selectedImage}
-                    alt="Preview"
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
+            {/* 3. Opções de Ajuda */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  3. Opções de Ajuda
+                </h3>
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2.5 p-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showGridLines}
+                    onChange={(e) => setShowGridLines(e.target.checked)}
+                    className="w-4 h-4 accent-sky-500 rounded text-sky-500"
                   />
-                </div>
-                <div className="flex-grow min-w-0">
-                  <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Imagem Selecionada</p>
-                  <p className="text-sm font-semibold text-slate-700 truncate mt-0.5">
-                    URL Personalizada / Modelo
-                  </p>
-                </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-700">Mostrar bordas das células</span>
+                    <span className="text-[10px] text-slate-400">Guia no tabuleiro</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 p-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showGuideImage}
+                    onChange={(e) => setShowGuideImage(e.target.checked)}
+                    className="w-4 h-4 accent-sky-500 rounded text-sky-500"
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-700">Mostrar a imagem de Guia</span>
+                    <span className="text-[10px] text-slate-400">Marca d'água no fundo</span>
+                  </div>
+                </label>
               </div>
-
-              {/* Botão de Começar */}
-              <button
-                onClick={handleStartGame}
-                className="w-full py-4 px-6 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-md"
-              >
-                Começar Atividade 🎮
-              </button>
             </div>
-
           </div>
+
+          {/* Botão Começar Atividade (abaixo de tudo) */}
+          <div className="pt-2">
+            <button
+              onClick={handleStartGame}
+              className="w-full py-4 px-6 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-md"
+            >
+              Começar Atividade
+            </button>
+          </div>
+
         </div>
       </div>
     </div>

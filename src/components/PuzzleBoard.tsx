@@ -28,7 +28,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   
   // Modos e Controles Visuais
-  const [showGuide, setShowGuide] = useState<boolean>(false);
+  const [showGuide, setShowGuide] = useState<boolean>(settings.showGuideImage ?? true);
   const [showNumbers, setShowNumbers] = useState<boolean>(settings.showNumbers);
   const [showInfo, setShowInfo] = useState<boolean>(true);
   const [aspectRatio, setAspectRatio] = useState<string>('1/1');
@@ -336,7 +336,8 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
       cols,
       label,
       showNumbers,
-      aspectRatioValue
+      aspectRatioValue,
+      settings.showGuideImage
     );
 
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
@@ -372,6 +373,20 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
           >
             💡 Resolver Automaticamente
           </button>
+
+          {/* Botão Mostrar/Ocultar Imagem de Guia */}
+          {settings.showGuideImage && (
+            <button
+              onClick={() => setShowGuide(!showGuide)}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                showGuide
+                  ? 'bg-sky-50 text-sky-700 border-sky-300 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Eye size={14} /> Imagem de Guia
+            </button>
+          )}
 
           {/* Botão Reiniciar */}
           <button
@@ -502,7 +517,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
                     onClick={resetPuzzle}
                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-sm cursor-pointer"
                   >
-                    Jogar Novamente 🎮
+                    Jogar Novamente
                   </button>
                   <button
                     onClick={handleDownloadStandalone}

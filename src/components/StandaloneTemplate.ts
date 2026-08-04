@@ -9,7 +9,8 @@ export function generateStandaloneHTML(
   cols: number,
   difficultyLabel: string,
   showNumbersByDefault: boolean,
-  aspectRatio: number
+  aspectRatio: number,
+  showGuideImage: boolean = true
 ): string {
   // Determine a nice default height for the puzzle based on aspect ratio
   // If the image is wide, the height is smaller. If tall, larger.
@@ -122,8 +123,8 @@ export function generateStandaloneHTML(
 
         <!-- Mensagem de Vitória Embutida abaixo do quebra-cabeça -->
         <div id="victory-banner" class="hidden w-full max-w-[480px] bg-emerald-50 border border-emerald-100 rounded-2xl p-5 shadow-sm text-center space-y-3">
-          <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm text-xl">
-            🏆
+          <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div>
             <h3 class="text-lg font-bold text-emerald-800">Parabéns!</h3>
@@ -136,7 +137,7 @@ export function generateStandaloneHTML(
               onclick="restartGame()"
               class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-sm cursor-pointer"
             >
-              Jogar Novamente 🎮
+              Jogar Novamente
             </button>
           </div>
         </div>
@@ -158,6 +159,7 @@ export function generateStandaloneHTML(
           <!-- Ações Rápidas (Minimalistas) -->
           <div class="flex flex-col gap-3">
             <!-- Botão Mostrar Guia -->
+            ${showGuideImage ? `
             <button 
               id="btn-guide" 
               class="flex items-center justify-between w-full p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all cursor-pointer text-left"
@@ -171,13 +173,19 @@ export function generateStandaloneHTML(
                 <div class="w-4 h-4 bg-slate-400 rounded-full transition-transform transform translate-x-0"></div>
               </div>
             </button>
+            ` : ''}
+
+            <!-- Mensagem de Instrução -->
+            <p class="text-xs text-center text-slate-500 font-medium pt-1">
+              Arraste as peças para montar o quebra-cabeça
+            </p>
 
             <!-- Botão Reiniciar -->
             <button 
               class="w-full p-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
               onclick="restartGame()"
             >
-              🔄 Embaralhar e Reiniciar
+              Embaralhar e Reiniciar
             </button>
           </div>
         </div>

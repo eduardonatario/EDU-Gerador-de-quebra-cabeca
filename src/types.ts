@@ -30,4 +30,5 @@ export interface PuzzleSettings {
   showGridLines: boolean;
   showNumbers: boolean;
   guideOpacity: number; // 0 to 1
+  showGuideImage: boolean;
 }
