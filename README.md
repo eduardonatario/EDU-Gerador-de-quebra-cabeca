@@ -28,8 +28,16 @@ Uma aplicação web em React + TypeScript + Tailwind CSS para criar, personaliza
 #### Opção A: Automatizado via GitHub Actions (Recomendado)
 1. No seu repositório no GitHub, vá em **Settings** > **Pages**.
 2. Na seção **Source** (Fonte), selecione **GitHub Actions**.
-3. Assim que você fizer um `git push`, a ação **Deploy to GitHub Pages** será executada automaticamente.
-4. O link do seu site estará disponível em instantes!
+3. Exporte / envie os arquivos atualizados para o GitHub. A ação **Deploy to GitHub Pages** na aba **Actions** iniciará a compilação e publicação automática.
+4. O link do seu site estará no ar em instantes!
+
+> ⚠️ **Página em branco no GitHub Pages?**
+> A página fica em branco quando os arquivos do site são enviados sem o caminho base configurado ou antes da ação do **GitHub Actions** terminar de compilar o projeto.
+>
+> **Como resolver:**
+> 1. Atualize o código no seu repositório do GitHub (usando **Export to GitHub** ou enviando novamente os arquivos atualizados).
+> 2. Clique na aba **Actions** no seu repositório do GitHub para acompanhar o build.
+> 3. Assim que aparecer o ícone verde de sucesso (✅), recarregue a página `https://eduardonatario.github.io/EDU-Gerador-de-quebra-cabeca/`.
 
 #### Opção B: Publicação Manual via Terminal
 Se preferir publicar manualmente via linha de comando, execute:
