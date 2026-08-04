@@ -147,7 +147,7 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
                   </span>
                   <input
                     type="url"
-                    placeholder="Ou cole a URL de qualquer imagem da internet..."
+                    placeholder="Cole o link da imagem que deseja transformar em um quebra-cabeça."
                     value={inputUrl}
                     onChange={(e) => setInputUrl(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40 transition-all shadow-sm"
@@ -172,7 +172,7 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
             {/* Exemplos de Imagem lado a lado (3 colunas) */}
             <div className="pt-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Modelos de Imagem Disponíveis</h4>
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Modelos de Imagem para teste</h4>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {PRESET_IMAGES.map((img) => (
@@ -302,13 +302,13 @@ export default function PuzzleSetup({ onStart }: PuzzleSetupProps) {
             </div>
           </div>
 
-          {/* Botão Começar Atividade (abaixo de tudo) */}
+          {/* Botão Criar Atividade (abaixo de tudo) */}
           <div className="pt-2">
             <button
               onClick={handleStartGame}
               className="w-full py-4 px-6 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-md"
             >
-              Começar Atividade
+              Criar Atividade
             </button>
           </div>
 

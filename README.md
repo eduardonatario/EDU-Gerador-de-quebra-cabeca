@@ -8,17 +8,18 @@ Uma aplicação web em React + TypeScript + Tailwind CSS para criar, personaliza
 1. Acesse o [GitHub](https://github.com) e crie um novo repositório público (ex: `quebra-cabeca-interativo`).
 2. Não inicialize com README se já for enviar este projeto.
 
-### 2. Enviar o Código para o GitHub
-No terminal da sua máquina local, no diretório do projeto, execute os seguintes comandos:
+### 2. Enviar o Código para o GitHub (Sem usar Terminal)
 
-```bash
-git init
-git add .
-git commit -m "Initial commit - Gerador de Quebra-Cabeça"
-git branch -M main
-git remote add origin https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git
-git push -u origin main
-```
+#### Método 1: Exportar direto do AI Studio (Mais Prático ✨)
+1. No menu superior da tela do **Google AI Studio**, clique no botão de exportação / **Export** (ou nas opções do projeto/configurações).
+2. Escolha a opção **Export to GitHub** para conectar sua conta e enviar o código diretamente para o seu repositório sem usar linha de comando.
+3. Alternativamente, selecione **Download ZIP** para baixar todo o código no seu computador.
+
+#### Método 2: Upload direto pelo site do GitHub
+1. Se você baixou o arquivo `.zip`, extraia-o no seu computador.
+2. Acesse o seu repositório no [GitHub.com](https://github.com).
+3. Clique no botão **Add file** > **Upload files**.
+4. Arraste todos os arquivos e pastas descompactados para a tela do GitHub e clique em **Commit changes**.
 
 ---
 
