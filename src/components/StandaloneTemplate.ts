@@ -3,6 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * Gera um arquivo HTML autônomo (standalone) completamente isolado para o quebra-cabeça.
+ * Não polui o escopo global (JS em IIFE estrita), possui CSS 100% encapsulado e com prefixos únicos,
+ * não depende de bibliotecas externas conflitantes (como Tailwind global CDN que sobrescreveria estilos de sites hospedeiros),
+ * e funciona perfeitamente tanto como arquivo independente quanto embutido via <iframe> ou direto no DOM de LMS/CMS.
+ */
 export function generateStandaloneHTML(
   imageUrl: string,
   rows: number,
@@ -13,579 +19,731 @@ export function generateStandaloneHTML(
   showGuideImage: boolean = true,
   completionMessage?: string
 ): string {
-  // Determine a nice default height for the puzzle based on aspect ratio
-  // If the image is wide, the height is smaller. If tall, larger.
-  // Standard puzzle container is 480px max-width.
-  
+  const uniqueId = 'edupz_' + Math.random().toString(36).substring(2, 9);
+  const safeCompletionMsg = completionMessage && completionMessage.trim()
+    ? completionMessage.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    : 'Você montou o quebra-cabeça com sucesso!';
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gerador de quebra-cabeça</title>
-  <!-- Tailwind CSS v4 CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Quebra-Cabeça</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap');
-    
+    /* Reset e Isolamento Total de Estilos para Não Afetar e Não Ser Afetado por Outros Códigos */
+    #${uniqueId}-container,
+    #${uniqueId}-container * {
+      box-sizing: border-box !important;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     body {
-      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
       background-color: #f8fafc;
       color: #1e293b;
     }
-    
-    .font-display {
-      font-family: 'Space Grotesk', sans-serif;
+
+    #${uniqueId}-container {
+      width: 100%;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      background-color: #f8fafc;
+      color: #1e293b;
     }
 
-    /* Estilo para a peça sendo arrastada */
-    .dragging {
+    /* Confetti Canvas */
+    #${uniqueId}-confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      display: none;
+    }
+
+    /* Grid do Layout */
+    .${uniqueId}-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      width: 100%;
+      align-items: start;
+    }
+
+    @media (min-width: 860px) {
+      .${uniqueId}-layout {
+        grid-template-columns: 7fr 5fr;
+      }
+    }
+
+    /* Coluna do Tabuleiro */
+    .${uniqueId}-board-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .${uniqueId}-board-box {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .${uniqueId}-board-grid {
+      display: grid;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      background-color: #f1f5f9;
+      border-radius: 10px;
+      box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+    }
+
+    .${uniqueId}-image-guide {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      pointer-events: none;
+      border-radius: 10px;
+      background-size: cover;
+      background-position: center;
+      transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+
+    /* Slots do Tabuleiro */
+    .${uniqueId}-slot {
+      position: relative;
+      border: 1px dashed #cbd5e1;
+      background-color: rgba(241, 245, 249, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s, border-color 0.2s;
+      width: 100%;
+      height: 100%;
+    }
+
+    .${uniqueId}-slot.${uniqueId}-drag-over {
+      border-color: #38bdf8 !important;
+      background-color: rgba(56, 189, 248, 0.15) !important;
+    }
+
+    /* Coluna Lateral (Estoque de Peças e Controles) */
+    .${uniqueId}-side-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .${uniqueId}-panel {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .${uniqueId}-pool {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px;
+      min-height: 140px;
+      max-height: 280px;
+      overflow-y: auto;
+      background-color: #f8fafc;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      align-items: flex-start;
+      align-content: flex-start;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Peças */
+    .${uniqueId}-piece {
+      position: relative;
+      background-repeat: no-repeat;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+      flex-shrink: 0;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      overflow: hidden;
+    }
+
+    .${uniqueId}-piece:hover {
+      transform: scale(1.04);
+    }
+
+    .${uniqueId}-piece:active {
+      cursor: grabbing;
+    }
+
+    .${uniqueId}-piece.${uniqueId}-dragging {
       opacity: 0.5;
       transform: scale(0.95);
     }
 
-    /* Estilo para o slot que está recebendo a peça */
-    .drag-over {
-      border-color: #38bdf8 !important;
-      background-color: rgba(56, 189, 248, 0.1) !important;
+    .${uniqueId}-piece.${uniqueId}-selected {
+      outline: 3px solid #0284c7 !important;
+      outline-offset: -2px;
+      transform: scale(0.97);
+      box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.25) !important;
     }
 
-    /* Peça selecionada no modo de clique */
-    .selected-piece {
-      outline: 3px solid #38bdf8 !important;
-      outline-offset: -3px;
-      transform: scale(0.98);
-      box-shadow: 0 10px 15px -3px rgba(56, 189, 248, 0.3) !important;
-    }
-
-    /* Peça travada na posição correta */
-    .piece-locked {
+    .${uniqueId}-piece.${uniqueId}-locked {
       cursor: not-allowed !important;
       pointer-events: none !important;
       outline: none !important;
+      border-color: rgba(16, 185, 129, 0.3) !important;
+      transform: none !important;
     }
 
-    /* Efeito de vitória no slot */
-    @keyframes pulse-success {
-      0%, 100% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0); }
-      50% { box-shadow: 0 0 15px 4px rgba(34, 197, 94, 0.6); }
+    .${uniqueId}-num-badge {
+      position: absolute;
+      bottom: 3px;
+      right: 3px;
+      background-color: rgba(255, 255, 255, 0.95);
+      color: #1e293b;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: monospace !important;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid #cbd5e1;
+      pointer-events: none;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
-    .snap-success {
-      animation: pulse-success 0.5s ease-out;
+
+    /* Botões e Controles */
+    .${uniqueId}-btn-guide {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 10px 14px;
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    .${uniqueId}-btn-guide:hover {
+      background-color: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .${uniqueId}-guide-switch {
+      width: 36px;
+      height: 20px;
+      background-color: #cbd5e1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      padding: 2px;
+      transition: background-color 0.25s;
+    }
+
+    .${uniqueId}-guide-switch-active {
+      background-color: #0284c7;
+    }
+
+    .${uniqueId}-guide-dot {
+      width: 16px;
+      height: 16px;
+      background-color: #ffffff;
+      border-radius: 50%;
+      transition: transform 0.25s;
+      transform: translateX(0);
+    }
+
+    .${uniqueId}-guide-dot-active {
+      transform: translateX(16px);
+    }
+
+    .${uniqueId}-btn-primary {
+      width: 100%;
+      padding: 12px 16px;
+      background-color: #059669;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 13px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+      transition: background-color 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .${uniqueId}-btn-primary:hover {
+      background-color: #047857;
+    }
+
+    .${uniqueId}-btn-primary:active {
+      transform: scale(0.99);
+    }
+
+    /* Banner de Vitória */
+    .${uniqueId}-victory-banner {
+      display: none;
+      width: 100%;
+      max-width: 480px;
+      background-color: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 16px;
+      padding: 18px;
+      text-align: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      animation: ${uniqueId}-fade-in 0.4s ease-out;
+    }
+
+    .${uniqueId}-victory-icon {
+      width: 40px;
+      height: 40px;
+      background-color: #d1fae5;
+      color: #059669;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 10px auto;
+      font-size: 20px;
+    }
+
+    .${uniqueId}-victory-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #065f46;
+      margin-bottom: 6px;
+    }
+
+    .${uniqueId}-victory-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: #047857;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+
+    .${uniqueId}-instruction {
+      font-size: 12px;
+      color: #64748b;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    @keyframes ${uniqueId}-fade-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes ${uniqueId}-pulse-success {
+      0%, 100% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0); }
+      50% { box-shadow: 0 0 14px 3px rgba(34, 197, 94, 0.6); }
+    }
+
+    .${uniqueId}-snap-success {
+      animation: ${uniqueId}-pulse-success 0.5s ease-out;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between py-6 px-4 md:px-8 bg-slate-50 text-slate-800">
+<body>
 
-  <!-- Confetti Canvas -->
-  <canvas id="confetti-canvas" class="fixed inset-0 w-full h-full pointer-events-none z-50 hidden"></canvas>
+  <!-- Container Isolado da Aplicação -->
+  <div id="${uniqueId}-container">
+    <canvas id="${uniqueId}-confetti-canvas"></canvas>
 
-  <div class="max-w-6xl mx-auto w-full pt-4">
-
-    <!-- Área de Estatísticas -->
-    <div class="hidden grid-cols-3 gap-3 max-w-lg mx-auto mb-6 text-center">
-      <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
-        <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Tempo</p>
-        <p id="timer" class="text-lg md:text-xl font-bold text-slate-800 font-mono">00:00</p>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
-        <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Movimentos</p>
-        <p id="moves" class="text-lg md:text-xl font-bold text-slate-800 font-mono">0</p>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
-        <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Encaixadas</p>
-        <p id="matched" class="text-lg md:text-xl font-bold text-emerald-600 font-mono">0 / ${rows * cols}</p>
-      </div>
-    </div>
-
-    <!-- Layout Principal -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      
-      <!-- Lado Esquerdo: Tabuleiro do Quebra-Cabeça -->
-      <div class="lg:col-span-7 flex flex-col items-center gap-4">
-        <div class="relative w-full max-w-[480px] bg-white border border-slate-200 rounded-xl p-3 shadow-lg">
-          
-          <!-- Tabuleiro Real -->
+    <div class="${uniqueId}-layout">
+      <!-- Coluna Esquerda: Tabuleiro -->
+      <div class="${uniqueId}-board-col">
+        <div class="${uniqueId}-board-box">
           <div 
-            id="puzzle-board" 
-            class="grid w-full relative overflow-hidden bg-slate-100 rounded-lg shadow-inner"
+            id="${uniqueId}-puzzle-board" 
+            class="${uniqueId}-board-grid"
             style="aspect-ratio: ${aspectRatio}; grid-template-columns: repeat(${cols}, minmax(0, 1fr)); grid-template-rows: repeat(${rows}, minmax(0, 1fr));"
           >
-            <!-- Os slots do grid serão inseridos aqui pelo JS -->
+            <!-- Slots inseridos via JS -->
           </div>
 
-          <!-- Guia de Imagem de Fundo (Ajustável) -->
+          <!-- Guia de Imagem de Fundo -->
           <div 
-            id="image-guide" 
-            class="absolute inset-3 pointer-events-none rounded-lg bg-cover bg-center transition-opacity duration-300 opacity-0"
+            id="${uniqueId}-image-guide" 
+            class="${uniqueId}-image-guide"
             style="background-image: url('${imageUrl}'); aspect-ratio: ${aspectRatio};"
           ></div>
         </div>
 
-        <!-- Mensagem de Vitória Embutida abaixo do quebra-cabeça -->
-        <div id="victory-banner" class="hidden w-full max-w-[480px] bg-emerald-50 border border-emerald-100 rounded-2xl p-5 shadow-sm text-center space-y-3">
-          <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </div>
-          <div>
-            <h3 class="text-lg font-bold text-emerald-800">Parabéns!</h3>
-            <p class="text-emerald-700 text-xs font-semibold whitespace-pre-wrap">
-              ${completionMessage && completionMessage.trim()
-                ? completionMessage.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                : 'Você montou o quebra-cabeça com sucesso!'}
-            </p>
-          </div>
-          <div class="flex gap-2 justify-center pt-1">
-            <button
-              onclick="restartGame()"
-              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-sm cursor-pointer"
-            >
+        <!-- Banner de Devolutiva / Vitória -->
+        <div id="${uniqueId}-victory-banner" class="${uniqueId}-victory-banner">
+          <div class="${uniqueId}-victory-icon">✓</div>
+          <div class="${uniqueId}-victory-title">Parabéns!</div>
+          <div class="${uniqueId}-victory-text">${safeCompletionMsg}</div>
+          <div style="display: flex; justify-content: center; gap: 8px;">
+            <button id="${uniqueId}-btn-play-again" class="${uniqueId}-btn-primary" style="width: auto; padding: 8px 18px; font-size: 12px;">
               Jogar Novamente
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Lado Direito: Estoque de Peças e Controles -->
-      <div class="lg:col-span-5 flex flex-col gap-6">
-        
-        <!-- Estoque de Peças (Pool) -->
-        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-          <!-- Container do Estoque -->
-          <div 
-            id="pieces-pool" 
-            class="flex flex-wrap gap-2.5 p-3 min-h-[140px] max-h-[300px] overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 justify-start content-start items-start shadow-inner"
-          >
-            <!-- As peças serão inseridas aqui pelo JS -->
+      <!-- Coluna Direita: Estoque de Peças e Ações -->
+      <div class="${uniqueId}-side-col">
+        <div class="${uniqueId}-panel">
+          <div id="${uniqueId}-pieces-pool" class="${uniqueId}-pool">
+            <!-- Peças inseridas via JS -->
           </div>
 
-          <!-- Ações Rápidas (Minimalistas) -->
-          <div class="flex flex-col gap-3">
-            <!-- Botão Mostrar Guia -->
+          <div style="display: flex; flex-direction: column; gap: 10px;">
             ${showGuideImage ? `
-            <button 
-              id="btn-guide" 
-              class="flex items-center justify-between w-full p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all cursor-pointer text-left"
-              onclick="toggleGuide()"
-            >
-              <div class="flex flex-col">
-                <span class="text-sm font-semibold text-slate-700">Mostrar Imagem de Guia</span>
-                <span class="text-xs text-slate-500">Ver imagem original em marca d'água</span>
+            <button id="${uniqueId}-btn-guide" class="${uniqueId}-btn-guide" type="button">
+              <div>
+                <div style="font-size: 13px; font-weight: 600; color: #334155;">Mostrar Imagem de Guia</div>
+                <div style="font-size: 11px; color: #64748b;">Ver marca d'água de referência</div>
               </div>
-              <div id="guide-indicator" class="w-10 h-6 bg-slate-200 rounded-full flex items-center p-1 transition-colors">
-                <div class="w-4 h-4 bg-slate-400 rounded-full transition-transform transform translate-x-0"></div>
+              <div id="${uniqueId}-guide-switch" class="${uniqueId}-guide-switch">
+                <div id="${uniqueId}-guide-dot" class="${uniqueId}-guide-dot"></div>
               </div>
             </button>
             ` : ''}
 
-            <!-- Mensagem de Instrução -->
-            <p class="text-xs text-center text-slate-500 font-medium pt-1">
-              Arraste as peças para montar o quebra-cabeça
-            </p>
+            <p class="${uniqueId}-instruction">Arraste ou clique nas peças para posicioná-las</p>
 
-            <!-- Botão Reiniciar -->
-            <button 
-              class="w-full p-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-              onclick="restartGame()"
-            >
+            <button id="${uniqueId}-btn-restart" class="${uniqueId}-btn-primary" type="button">
               Embaralhar e Reiniciar
             </button>
           </div>
         </div>
-
       </div>
     </div>
   </div>
 
-
-
-  <!-- Rodapé -->
-  <footer class="text-center text-xs text-slate-400 mt-12">
-  </footer>
-
+  <!-- Script 100% Encapsulado em IIFE - Zero Vazamento no Escopo Global -->
   <script>
-    // Configurações do Quebra-Cabeça
-    const ROWS = ${rows};
-    const COLS = ${cols};
-    const TOTAL_PIECES = ROWS * COLS;
-    const IMAGE_URL = \`${imageUrl}\`;
+  (function() {
+    'use strict';
 
-    // Estados do Jogo
-    let pieces = [];
-    let movesCount = 0;
-    let matchedCount = 0;
-    let timerInterval = null;
-    let secondsElapsed = 0;
-    let gameStarted = false;
-    let selectedPieceId = null;
+    // Constantes do Quebra-Cabeça
+    var ROWS = ${rows};
+    var COLS = ${cols};
+    var TOTAL_PIECES = ROWS * COLS;
+    var IMAGE_URL = ${JSON.stringify(imageUrl)};
+    var SHOW_NUMBERS = ${showNumbersByDefault};
 
-    // Configurações visuais de suporte
-    let showGuide = false;
-    let showNumbers = ${showNumbersByDefault};
+    // Referências ao container raiz isolado
+    var root = document.getElementById('${uniqueId}-container');
+    if (!root) return;
 
-    // Sons Sintetizados via Web Audio API
-    function playAudioTone(freqs, duration, type = 'sine') {
+    var boardEl = root.querySelector('#${uniqueId}-puzzle-board');
+    var poolEl = root.querySelector('#${uniqueId}-pieces-pool');
+    var guideEl = root.querySelector('#${uniqueId}-image-guide');
+    var victoryBannerEl = root.querySelector('#${uniqueId}-victory-banner');
+    var confettiCanvasEl = root.querySelector('#${uniqueId}-confetti-canvas');
+    var btnGuideEl = root.querySelector('#${uniqueId}-btn-guide');
+    var guideSwitchEl = root.querySelector('#${uniqueId}-guide-switch');
+    var guideDotEl = root.querySelector('#${uniqueId}-guide-dot');
+    var btnRestartEl = root.querySelector('#${uniqueId}-btn-restart');
+    var btnPlayAgainEl = root.querySelector('#${uniqueId}-btn-play-again');
+
+    // Estado interno isolado
+    var pieces = [];
+    var matchedCount = 0;
+    var selectedPieceId = null;
+    var draggedPieceId = null;
+    var showGuide = false;
+    var audioCtx = null;
+
+    // Web Audio sintetizado seguro
+    function playAudio(freqs, duration, type) {
+      type = type || 'sine';
       try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
-        
-        freqs.forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
+        var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!audioCtx) {
+          audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        var startTime = audioCtx.currentTime;
+        freqs.forEach(function(freq, idx) {
+          var osc = audioCtx.createOscillator();
+          var gain = audioCtx.createGain();
           osc.connect(gain);
-          gain.connect(ctx.destination);
-          
+          gain.connect(audioCtx.destination);
           osc.type = type;
-          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
-          
-          gain.gain.setValueAtTime(0.08, ctx.currentTime + idx * 0.08);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + duration);
-          
-          osc.start(ctx.currentTime + idx * 0.08);
-          osc.stop(ctx.currentTime + idx * 0.08 + duration);
+          osc.frequency.setValueAtTime(freq, startTime + idx * 0.08);
+          gain.gain.setValueAtTime(0.08, startTime + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + idx * 0.08 + duration);
+          osc.start(startTime + idx * 0.08);
+          osc.stop(startTime + idx * 0.08 + duration);
         });
       } catch (e) {
-        console.log("AudioContext blocked or not supported by browser", e);
+        // Ignora silenciosamente se o navegador restringir áudio em iframes não focados
       }
     }
 
-    function playSnapSound() {
-      // Tom agudo ascendente rápido para indicação de sucesso local
-      playAudioTone([587.33, 880], 0.15, 'sine');
+    function playSnap() {
+      playAudio([587.33, 880], 0.15, 'sine');
     }
 
-    function playVictorySound() {
-      // Acorde triunfal maior
-      playAudioTone([261.63, 329.63, 392.00, 523.25], 0.45, 'triangle');
+    function playVictory() {
+      playAudio([261.63, 329.63, 392.00, 523.25], 0.45, 'triangle');
     }
 
-    // Inicialização do Jogo
-    window.addEventListener('DOMContentLoaded', () => {
-      initGame();
-    });
+    function shuffle(arr) {
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+      }
+    }
 
     function initGame() {
-      const board = document.getElementById('puzzle-board');
-      const pool = document.getElementById('pieces-pool');
+      if (!boardEl || !poolEl) return;
 
-      // Limpar elementos antigos
-      board.innerHTML = '';
-      pool.innerHTML = '';
-
-      // Reset de estado
-      movesCount = 0;
+      boardEl.innerHTML = '';
+      poolEl.innerHTML = '';
       matchedCount = 0;
-      secondsElapsed = 0;
-      gameStarted = false;
       selectedPieceId = null;
-      clearInterval(timerInterval);
-      document.getElementById('moves').innerText = '0';
-      document.getElementById('timer').innerText = '00:00';
-      document.getElementById('matched').innerText = '0 / ' + TOTAL_PIECES;
+      draggedPieceId = null;
 
-      // Criar células (slots) no tabuleiro
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const cell = document.createElement('div');
-          cell.id = \`slot-\${r}-\${c}\`;
-          cell.className = 'relative border border-dashed border-slate-300 bg-slate-100/50 flex items-center justify-center transition-colors';
-          cell.style.width = '100%';
-          cell.style.height = '100%';
-          
-          // Eventos de Drag & Drop para o Slot
-          cell.addEventListener('dragover', dragOver);
-          cell.addEventListener('dragleave', dragLeave);
-          cell.addEventListener('drop', dropOnSlot);
-          
-          // Clique no slot do board para mover peça selecionada
-          cell.addEventListener('click', () => clickOnSlot(r, c));
+      if (victoryBannerEl) victoryBannerEl.style.display = 'none';
+      if (confettiCanvasEl) confettiCanvasEl.style.display = 'none';
 
-          board.appendChild(cell);
+      // 1. Criar Slots do Tabuleiro
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          (function(row, col) {
+            var cell = document.createElement('div');
+            cell.id = '${uniqueId}-slot-' + row + '-' + col;
+            cell.className = '${uniqueId}-slot';
+            
+            // Drag & drop listeners
+            cell.addEventListener('dragover', function(e) {
+              e.preventDefault();
+              cell.classList.add('${uniqueId}-drag-over');
+            });
+            cell.addEventListener('dragleave', function() {
+              cell.classList.remove('${uniqueId}-drag-over');
+            });
+            cell.addEventListener('drop', function(e) {
+              e.preventDefault();
+              cell.classList.remove('${uniqueId}-drag-over');
+              if (draggedPieceId) {
+                placePieceInSlot(draggedPieceId, cell);
+              }
+            });
+
+            // Clique / Toque
+            cell.addEventListener('click', function() {
+              if (selectedPieceId) {
+                placePieceInSlot(selectedPieceId, cell);
+                clearSelection();
+              }
+            });
+
+            boardEl.appendChild(cell);
+          })(r, c);
         }
       }
 
-      // Eventos para o pool aceitar peças de volta
-      pool.addEventListener('dragover', dragOver);
-      pool.addEventListener('drop', dropOnPool);
-      pool.addEventListener('click', () => clickOnPool());
-
-      // Criar as peças
-      pieces = [];
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const pieceId = \`piece-\${r}-\${c}\`;
-          
-          // Cálculo de background-position
-          const posX = COLS > 1 ? (c / (COLS - 1)) * 100 : 0;
-          const posY = ROWS > 1 ? (r / (ROWS - 1)) * 100 : 0;
-
-          const piece = {
-            id: pieceId,
-            correctRow: r,
-            correctCol: c,
-            currentCell: null,
-            posX,
-            posY
-          };
-          pieces.push(piece);
+      // Drag & drop no Pool
+      poolEl.addEventListener('dragover', function(e) {
+        e.preventDefault();
+      });
+      poolEl.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (draggedPieceId) {
+          returnPieceToPool(draggedPieceId);
         }
-      }
-
-      // Embaralhar as peças
-      const shuffledPieces = [...pieces];
-      shuffleArray(shuffledPieces);
-
-      // Renderizar as peças embaralhadas na área de estoque (pool)
-      shuffledPieces.forEach(p => {
-        const pieceEl = document.createElement('div');
-        pieceEl.id = p.id;
-        pieceEl.draggable = true;
-        pieceEl.className = 'relative rounded-md cursor-grab active:cursor-grabbing shadow-md border border-slate-200 overflow-hidden flex-shrink-0 transition-all hover:scale-105';
-        
-        // Estilo e posicionamento da imagem fatiada
-        pieceEl.style.width = '70px';
-        pieceEl.style.height = '70px';
-        pieceEl.style.backgroundImage = \`url('\${IMAGE_URL}')\`;
-        pieceEl.style.backgroundSize = \`\${COLS * 100}% \${ROWS * 100}%\`;
-        pieceEl.style.backgroundPosition = \`\${p.posX}% \${p.posY}%\`;
-
-        // Indicador de número para ajuda
-        const numLabel = document.createElement('span');
-        numLabel.className = 'absolute bottom-1 right-1 bg-white/95 text-slate-800 font-mono font-bold text-[10px] w-5 h-5 flex items-center justify-center rounded-full border border-slate-200 pointer-events-none transition-all shadow-sm ' + (showNumbers ? 'block' : 'hidden');
-        numLabel.id = \`num-\${p.id}\`;
-        numLabel.innerText = (p.correctRow * COLS + p.correctCol + 1).toString();
-        pieceEl.appendChild(numLabel);
-
-        // Adicionar eventos de arrasto
-        pieceEl.addEventListener('dragstart', dragStart);
-        pieceEl.addEventListener('dragend', dragEnd);
-        
-        // Evento de clique para o modo toque
-        pieceEl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          clickOnPiece(p.id);
-        });
-
-        pool.appendChild(pieceEl);
+      });
+      poolEl.addEventListener('click', function() {
+        if (selectedPieceId) {
+          returnPieceToPool(selectedPieceId);
+          clearSelection();
+        }
       });
 
-      updatePoolCount();
-    }
+      // 2. Criar Peças
+      pieces = [];
+      for (var pr = 0; pr < ROWS; pr++) {
+        for (var pc = 0; pc < COLS; pc++) {
+          var pId = '${uniqueId}-piece-' + pr + '-' + pc;
+          var posX = COLS > 1 ? (pc / (COLS - 1)) * 100 : 0;
+          var posY = ROWS > 1 ? (pr / (ROWS - 1)) * 100 : 0;
 
-    function shuffleArray(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+          pieces.push({
+            id: pId,
+            correctRow: pr,
+            correctCol: pc,
+            currentCell: null,
+            posX: posX,
+            posY: posY
+          });
+        }
       }
+
+      var shuffled = pieces.slice();
+      shuffle(shuffled);
+
+      shuffled.forEach(function(p) {
+        var pieceEl = document.createElement('div');
+        pieceEl.id = p.id;
+        pieceEl.draggable = true;
+        pieceEl.className = '${uniqueId}-piece';
+        pieceEl.style.width = '64px';
+        pieceEl.style.height = '64px';
+        pieceEl.style.borderRadius = '10px';
+        pieceEl.style.backgroundImage = 'url(' + JSON.stringify(IMAGE_URL) + ')';
+        pieceEl.style.backgroundSize = (COLS * 100) + '% ' + (ROWS * 100) + '%';
+        pieceEl.style.backgroundPosition = p.posX + '% ' + p.posY + '%';
+
+        if (SHOW_NUMBERS) {
+          var badge = document.createElement('span');
+          badge.className = '${uniqueId}-num-badge';
+          badge.innerText = (p.correctRow * COLS + p.correctCol + 1).toString();
+          pieceEl.appendChild(badge);
+        }
+
+        pieceEl.addEventListener('dragstart', function() {
+          draggedPieceId = p.id;
+          pieceEl.classList.add('${uniqueId}-dragging');
+        });
+        pieceEl.addEventListener('dragend', function() {
+          pieceEl.classList.remove('${uniqueId}-dragging');
+          var allSlots = boardEl.querySelectorAll('.${uniqueId}-slot');
+          allSlots.forEach(function(s) { s.classList.remove('${uniqueId}-drag-over'); });
+        });
+
+        pieceEl.addEventListener('click', function(e) {
+          e.stopPropagation();
+          handlePieceClick(p.id);
+        });
+
+        poolEl.appendChild(pieceEl);
+      });
     }
 
-    // Cronômetro do Jogo
-    function startTimer() {
-      if (gameStarted) return;
-      gameStarted = true;
-      secondsElapsed = 0;
-      timerInterval = setInterval(() => {
-        secondsElapsed++;
-        const minutes = Math.floor(secondsElapsed / 60);
-        const seconds = secondsElapsed % 60;
-        const formattedTime = 
-          String(minutes).padStart(2, '0') + ':' + 
-          String(seconds).padStart(2, '0');
-        document.getElementById('timer').innerText = formattedTime;
-      }, 1000);
-    }
-
-    function updatePoolCount() {
-      const remaining = document.getElementById('pieces-pool').childElementCount;
-      const countEl = document.getElementById('pool-count');
-      if (countEl) {
-        countEl.innerText = remaining + ' restantes';
+    function clearSelection() {
+      if (selectedPieceId) {
+        var prev = root.querySelector('#' + selectedPieceId);
+        if (prev) prev.classList.remove('${uniqueId}-selected');
       }
+      selectedPieceId = null;
     }
 
-    // Funções de Arrastar e Soltar (Drag & Drop)
-    let draggedPieceId = null;
+    function handlePieceClick(pieceId) {
+      var pieceEl = root.querySelector('#' + pieceId);
+      if (!pieceEl || pieceEl.classList.contains('${uniqueId}-locked')) return;
 
-    function dragStart(e) {
-      draggedPieceId = this.id;
-      this.classList.add('dragging');
-      startTimer();
-    }
-
-    function dragEnd() {
-      this.classList.remove('dragging');
-      // Limpar todos os estilos de drag-over
-      const slots = document.querySelectorAll('#puzzle-board > div');
-      slots.forEach(s => s.classList.remove('drag-over'));
-    }
-
-    function dragOver(e) {
-      e.preventDefault();
-      if (this.id.startsWith('slot-')) {
-        this.classList.add('drag-over');
-      }
-    }
-
-    function dragLeave() {
-      this.classList.remove('drag-over');
-    }
-
-    function dropOnSlot(e) {
-      e.preventDefault();
-      this.classList.remove('drag-over');
-      const pieceId = draggedPieceId;
-      if (!pieceId) return;
-
-      placePieceInSlot(pieceId, this);
-    }
-
-    function dropOnPool(e) {
-      e.preventDefault();
-      const pieceId = draggedPieceId;
-      if (!pieceId) return;
-
-      returnPieceToPool(pieceId);
-    }
-
-    // Funções de Clique para Celulares (Modo Alternativo de Toque)
-    function clickOnPiece(pieceId) {
-      startTimer();
-      const pieceEl = document.getElementById(pieceId);
-      
-      // Se a peça já está travada na posição correta, ignorar
-      if (pieceEl.classList.contains('piece-locked')) return;
-
-      // Se clicar na mesma peça, desmarcar
       if (selectedPieceId === pieceId) {
-        pieceEl.classList.remove('selected-piece');
-        selectedPieceId = null;
+        clearSelection();
         return;
       }
 
-      // Limpar seleção anterior
-      if (selectedPieceId) {
-        const prevSel = document.getElementById(selectedPieceId);
-        if (prevSel) prevSel.classList.remove('selected-piece');
-      }
-
-      // Selecionar nova peça
+      clearSelection();
       selectedPieceId = pieceId;
-      pieceEl.classList.add('selected-piece');
+      pieceEl.classList.add('${uniqueId}-selected');
     }
 
-    function clickOnSlot(row, col) {
-      if (!selectedPieceId) return;
-      const slot = document.getElementById(\`slot-\${row}-\${col}\`);
-      
-      placePieceInSlot(selectedPieceId, slot);
-      
-      // Limpar seleção
-      const pieceEl = document.getElementById(selectedPieceId);
-      if (pieceEl) pieceEl.classList.remove('selected-piece');
-      selectedPieceId = null;
-    }
-
-    function clickOnPool() {
-      if (!selectedPieceId) return;
-      returnPieceToPool(selectedPieceId);
-      
-      // Limpar seleção
-      const pieceEl = document.getElementById(selectedPieceId);
-      if (pieceEl) pieceEl.classList.remove('selected-piece');
-      selectedPieceId = null;
-    }
-
-    // Lógica Central de Movimentação de Peças
     function placePieceInSlot(pieceId, slotEl) {
-      const pieceEl = document.getElementById(pieceId);
+      var pieceEl = root.querySelector('#' + pieceId);
       if (!pieceEl) return;
 
-      // Se o slot já possui uma peça
       if (slotEl.childElementCount > 0) {
-        const currentInSlot = slotEl.firstElementChild;
-        // Se a peça atual já estiver locked, não podemos substituir
-        if (currentInSlot.classList.contains('piece-locked')) return;
-        
-        // Caso contrário, devolver a peça anterior para o estoque (pool)
-        returnPieceToPool(currentInSlot.id);
+        var existing = slotEl.firstElementChild;
+        if (existing.classList.contains('${uniqueId}-locked')) return;
+        returnPieceToPool(existing.id);
       }
 
-      // Adicionar a peça ao slot
       slotEl.appendChild(pieceEl);
-      
-      // Redimensionar peça para preencher a célula (100% da célula do grid)
       pieceEl.style.width = '100%';
       pieceEl.style.height = '100%';
-      pieceEl.classList.remove('rounded-md');
+      pieceEl.style.borderRadius = '0px';
 
-      // Extrair linha/col do slot
-      const [_, r, c] = slotEl.id.split('-').map(Number);
-      
-      // Atualizar o estado da peça
-      const pieceData = pieces.find(p => p.id === pieceId);
+      var pieceData = pieces.find(function(p) { return p.id === pieceId; });
       if (pieceData) {
         pieceData.currentCell = slotEl.id;
       }
 
-      // Incrementar contagem de movimentos
-      movesCount++;
-      document.getElementById('moves').innerText = movesCount;
-
-      // Verificar se a peça está na posição correta
       checkPieceMatch(pieceData, pieceEl, slotEl);
-      updatePoolCount();
     }
 
     function returnPieceToPool(pieceId) {
-      const pieceEl = document.getElementById(pieceId);
-      const pool = document.getElementById('pieces-pool');
+      var pieceEl = root.querySelector('#' + pieceId);
       if (!pieceEl) return;
 
-      // Remover do slot antigo
-      const pieceData = pieces.find(p => p.id === pieceId);
+      var pieceData = pieces.find(function(p) { return p.id === pieceId; });
       if (pieceData) {
         pieceData.currentCell = null;
       }
 
-      // Retornar ao tamanho de estoque e borda arredondada
-      pieceEl.style.width = '70px';
-      pieceEl.style.height = '70px';
-      pieceEl.classList.add('rounded-md');
+      pieceEl.style.width = '64px';
+      pieceEl.style.height = '64px';
+      pieceEl.style.borderRadius = '10px';
+      poolEl.appendChild(pieceEl);
 
-      pool.appendChild(pieceEl);
-      
-      movesCount++;
-      document.getElementById('moves').innerText = movesCount;
-      
       checkAllPositions();
-      updatePoolCount();
     }
 
     function checkPieceMatch(pieceData, pieceEl, slotEl) {
       if (!pieceData) return;
+      var expectedId = '${uniqueId}-slot-' + pieceData.correctRow + '-' + pieceData.correctCol;
+      var isMatch = slotEl.id === expectedId;
 
-      const [_, sRow, sCol] = slotEl.id.split('-').map(Number);
-      const isMatchNow = pieceData.correctRow === sRow && pieceData.correctCol === sCol;
-
-      if (isMatchNow && !pieceEl.classList.contains('piece-locked')) {
-        // Travar peça na posição correta
-        pieceEl.classList.add('piece-locked');
+      if (isMatch && !pieceEl.classList.contains('${uniqueId}-locked')) {
+        pieceEl.classList.add('${uniqueId}-locked');
         pieceEl.draggable = false;
-        
-        // Efeito sonoro sintetizado offline
-        playSnapSound();
+        playSnap();
 
-        // Remover número auxiliar se estivesse ativado (ou mantê-lo estático de forma discreta)
-        const numLabel = document.getElementById(\`num-\${pieceData.id}\`);
-        if (numLabel) {
-          numLabel.style.display = 'none';
-        }
+        var badge = pieceEl.querySelector('.${uniqueId}-num-badge');
+        if (badge) badge.style.display = 'none';
 
-        // Adicionar brilho de sucesso no slot temporário
-        slotEl.classList.add('snap-success');
-        setTimeout(() => {
-          slotEl.classList.remove('snap-success');
+        slotEl.classList.add('${uniqueId}-snap-success');
+        setTimeout(function() {
+          slotEl.classList.remove('${uniqueId}-snap-success');
         }, 500);
       }
 
@@ -593,107 +751,53 @@ export function generateStandaloneHTML(
     }
 
     function checkAllPositions() {
-      let matched = 0;
-      pieces.forEach(p => {
-        const pieceEl = document.getElementById(p.id);
-        if (pieceEl && p.currentCell === \`slot-\${p.correctRow}-\${p.correctCol}\`) {
-          matched++;
-          if (!pieceEl.classList.contains('piece-locked')) {
-            pieceEl.classList.add('piece-locked');
+      var count = 0;
+      pieces.forEach(function(p) {
+        var pieceEl = root.querySelector('#' + p.id);
+        var expectedSlotId = '${uniqueId}-slot-' + p.correctRow + '-' + p.correctCol;
+        if (pieceEl && p.currentCell === expectedSlotId) {
+          count++;
+          if (!pieceEl.classList.contains('${uniqueId}-locked')) {
+            pieceEl.classList.add('${uniqueId}-locked');
             pieceEl.draggable = false;
-            const numLabel = document.getElementById(\`num-\${p.id}\`);
-            if (numLabel) numLabel.style.display = 'none';
           }
         }
       });
 
-      matchedCount = matched;
-      document.getElementById('matched').innerText = \`\${matchedCount} / \${TOTAL_PIECES}\`;
-
-      // Vitória!
+      matchedCount = count;
       if (matchedCount === TOTAL_PIECES) {
         endGame();
       }
     }
 
-    // Fim de jogo e comemoração
     function endGame() {
-      clearInterval(timerInterval);
-      playVictorySound();
-
-      // Ativar e disparar confetes no Canvas
-      const canvas = document.getElementById('confetti-canvas');
-      canvas.classList.remove('hidden');
-      triggerConfetti();
-
-      // Exibir o banner de sucesso embutido
-      setTimeout(() => {
-        const victoryBanner = document.getElementById('victory-banner');
-        if (victoryBanner) {
-          victoryBanner.classList.remove('hidden');
-        }
-      }, 600);
-    }
-
-    // Controles visuais de ajuda
-    function toggleGuide() {
-      showGuide = !showGuide;
-      const guide = document.getElementById('image-guide');
-      const indicator = document.getElementById('guide-indicator');
-      const dot = indicator.firstElementChild;
-
-      if (showGuide) {
-        guide.style.opacity = '0.25';
-        indicator.classList.remove('bg-slate-700');
-        indicator.classList.add('bg-sky-500');
-        dot.classList.remove('translate-x-0');
-        dot.classList.add('translate-x-4');
-        dot.classList.remove('bg-slate-400');
-        dot.classList.add('bg-white');
-      } else {
-        guide.style.opacity = '0';
-        indicator.classList.remove('bg-sky-500');
-        indicator.classList.add('bg-slate-700');
-        dot.classList.remove('translate-x-4');
-        dot.classList.add('translate-x-0');
-        dot.classList.remove('bg-white');
-        dot.classList.add('bg-slate-400');
+      playVictory();
+      if (confettiCanvasEl) {
+        confettiCanvasEl.style.display = 'block';
+        triggerConfetti();
       }
+      setTimeout(function() {
+        if (victoryBannerEl) {
+          victoryBannerEl.style.display = 'block';
+        }
+      }, 500);
     }
 
-    function closeSuccessModal() {
-      const victoryBanner = document.getElementById('victory-banner');
-      if (victoryBanner) victoryBanner.classList.add('hidden');
-      const canvas = document.getElementById('confetti-canvas');
-      canvas.classList.add('hidden');
-    }
-
-    function restartGame() {
-      initGame();
-      // Ocultar o banner se estiver aberto
-      const victoryBanner = document.getElementById('victory-banner');
-      if (victoryBanner) victoryBanner.classList.add('hidden');
-      document.getElementById('confetti-canvas').classList.add('hidden');
-    }
-
-    // --- SISTEMA DE CONFETES LEVE (SEM DEPENDÊNCIAS) ---
     function triggerConfetti() {
-      const canvas = document.getElementById('confetti-canvas');
-      const ctx = canvas.getContext('2d');
-      
-      // Ajustar tamanho do canvas
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      if (!confettiCanvasEl) return;
+      var ctx = confettiCanvasEl.getContext('2d');
+      confettiCanvasEl.width = window.innerWidth;
+      confettiCanvasEl.height = window.innerHeight;
 
-      const colors = ['#f43f5e', '#3b82f6', '#10b981', '#eab308', '#a855f7', '#06b6d4'];
-      const particles = [];
+      var colors = ['#f43f5e', '#3b82f6', '#10b981', '#eab308', '#a855f7', '#06b6d4'];
+      var particles = [];
 
-      for (let i = 0; i < 120; i++) {
+      for (var i = 0; i < 90; i++) {
         particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height - canvas.height,
+          x: Math.random() * confettiCanvasEl.width,
+          y: Math.random() * confettiCanvasEl.height - confettiCanvasEl.height,
           r: Math.random() * 6 + 4,
-          d: Math.random() * canvas.height,
+          d: Math.random() * confettiCanvasEl.height,
           color: colors[Math.floor(Math.random() * colors.length)],
           tilt: Math.random() * 10 - 5,
           tiltAngleIncremental: Math.random() * 0.07 + 0.02,
@@ -701,18 +805,14 @@ export function generateStandaloneHTML(
         });
       }
 
-      let animationId;
-      function drawConfetti() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        let remaining = 0;
-        particles.forEach((p, idx) => {
+      function draw() {
+        ctx.clearRect(0, 0, confettiCanvasEl.width, confettiCanvasEl.height);
+        var remaining = 0;
+        particles.forEach(function(p, idx) {
           p.tiltAngle += p.tiltAngleIncremental;
           p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
           p.tilt = Math.sin(p.tiltAngle - idx / 3) * 15;
-
-          if (p.y <= canvas.height) remaining++;
-
+          if (p.y <= confettiCanvasEl.height) remaining++;
           ctx.beginPath();
           ctx.lineWidth = p.r;
           ctx.strokeStyle = p.color;
@@ -722,20 +822,41 @@ export function generateStandaloneHTML(
         });
 
         if (remaining > 0) {
-          animationId = requestAnimationFrame(drawConfetti);
+          requestAnimationFrame(draw);
         } else {
-          canvas.classList.add('hidden');
+          confettiCanvasEl.style.display = 'none';
         }
       }
+      draw();
+    }
 
-      drawConfetti();
-
-      // Cancelar ao fechar o modal
-      window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    // Toggle Imagem Guia
+    if (btnGuideEl && guideEl && guideSwitchEl && guideDotEl) {
+      btnGuideEl.addEventListener('click', function() {
+        showGuide = !showGuide;
+        if (showGuide) {
+          guideEl.style.opacity = '0.25';
+          guideSwitchEl.classList.add('${uniqueId}-guide-switch-active');
+          guideDotEl.classList.add('${uniqueId}-guide-dot-active');
+        } else {
+          guideEl.style.opacity = '0';
+          guideSwitchEl.classList.remove('${uniqueId}-guide-switch-active');
+          guideDotEl.classList.remove('${uniqueId}-guide-dot-active');
+        }
       });
     }
+
+    // Botões de reiniciar
+    if (btnRestartEl) btnRestartEl.addEventListener('click', initGame);
+    if (btnPlayAgainEl) btnPlayAgainEl.addEventListener('click', initGame);
+
+    // Inicialização segura
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initGame);
+    } else {
+      initGame();
+    }
+  })();
   </script>
 </body>
 </html>`;

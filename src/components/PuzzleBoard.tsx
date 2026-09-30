@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Play, RotateCcw, Eye, Download, Info, Check, Sparkles, HelpCircle } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Eye, Download, Check, Sparkles, Code2, Copy, X } from 'lucide-react';
 import { PuzzlePiece, PuzzleSettings } from '../types';
 import { generateStandaloneHTML } from './StandaloneTemplate';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30,9 +30,10 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
   // Modos e Controles Visuais
   const [showGuide, setShowGuide] = useState<boolean>(settings.showGuideImage ?? true);
   const [showNumbers, setShowNumbers] = useState<boolean>(settings.showNumbers);
-  const [showInfo, setShowInfo] = useState<boolean>(true);
   const [aspectRatio, setAspectRatio] = useState<string>('1/1');
   const [aspectRatioValue, setAspectRatioValue] = useState<number>(1);
+  const [showEmbedModal, setShowEmbedModal] = useState<boolean>(false);
+  const [copiedEmbed, setCopiedEmbed] = useState<boolean>(false);
 
   // Estados de Interação
   const [draggedPieceId, setDraggedPieceId] = useState<string | null>(null);
@@ -52,7 +53,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
       const ratio = w / h;
       setAspectRatioValue(ratio);
       
-      // Arredondar para strings comuns de aspect ratio
       if (Math.abs(ratio - 1) < 0.15) {
         setAspectRatio('1/1');
       } else if (Math.abs(ratio - 1.77) < 0.2) {
@@ -101,20 +101,18 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
         
         osc.type = type;
         osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
-        
         gain.gain.setValueAtTime(0.08, ctx.currentTime + idx * 0.08);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + duration);
-        
         osc.start(ctx.currentTime + idx * 0.08);
         osc.stop(ctx.currentTime + idx * 0.08 + duration);
       });
     } catch (e) {
-      console.log('AudioContext blocked or not supported');
+      // Ignora erro de autoplay
     }
   };
 
-  const playSnapSound = () => playTone([587.33, 880], 0.15, 'sine'); // Ré5 para Lá5 alegre
-  const playVictorySound = () => playTone([261.63, 329.63, 392.00, 523.25], 0.45, 'triangle'); // Dó, Mi, Sol, Dó chord
+  const playSnapSound = () => playTone([587.33, 880], 0.15, 'sine');
+  const playVictorySound = () => playTone([261.63, 329.63, 392.00, 523.25], 0.45, 'triangle');
 
   // Embaralhar e reiniciar
   const resetPuzzle = () => {
@@ -142,7 +140,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
           id: pieceId,
           correctRow: r,
           correctCol: c,
-          currentCell: null, // no pool inicialmente
+          currentCell: null,
           style: {
             backgroundImage: `url(${imageUrl})`,
             backgroundSize: `${cols * 100}% ${rows * 100}%`,
@@ -152,7 +150,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
       }
     }
 
-    // Embaralhar as peças para que comecem bagunçadas no estoque
     const shuffledPieces = [...newPieces];
     for (let i = shuffledPieces.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -164,7 +161,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
     setPieces(shuffledPieces);
   };
 
-  // Resolver quebra-cabeça automaticamente (Função de demonstração super legal)
+  // Resolver quebra-cabeça automaticamente para teste
   const autoSolve = () => {
     startTimer();
     const solved = pieces.map((p) => ({
@@ -178,19 +175,11 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
     playVictorySound();
   };
 
-  // Formatar tempo em mm:ss
-  const formatTime = (totalSecs: number): string => {
-    const mins = Math.floor(totalSecs / 60);
-    const secs = totalSecs % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-
   // --- LÓGICA DE MOVIMENTO E DRAG & DROP ---
-
   const handleDragStart = (id: string) => {
     startTimer();
     setDraggedPieceId(id);
-    setSelectedPieceId(id); // sincroniza clique também
+    setSelectedPieceId(id);
   };
 
   const handleDropOnCell = (cellId: string) => {
@@ -211,33 +200,27 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
     setDragOverCellId(null);
   };
 
-  // Função centralizada para mover para uma célula
   const movePieceToCell = (pieceId: string, cellId: string) => {
     setPieces((prevPieces) => {
-      // Verificar se essa célula já tem uma peça ativa
       const occupant = prevPieces.find((p) => p.currentCell === cellId);
       
-      // Se a peça ocupante já está travada na posição correta, não podemos substituir
       if (occupant) {
         const [_, occupantRow, occupantCol] = cellId.split('-').map(Number);
         if (occupant.correctRow === occupantRow && occupant.correctCol === occupantCol) {
-          return prevPieces; // não muda nada, bloqueado!
+          return prevPieces;
         }
       }
 
       const updated = prevPieces.map((p) => {
-        // Se for a peça que estamos movendo
         if (p.id === pieceId) {
           return { ...p, currentCell: cellId };
         }
-        // Se for a peça que estava ocupando a célula, devolvemos ela para o estoque (pool)
         if (occupant && p.id === occupant.id) {
           return { ...p, currentCell: null };
         }
         return p;
       });
 
-      // Calcular quantos encaixes perfeitos temos
       let matches = 0;
       updated.forEach((p) => {
         if (p.currentCell === `slot-${p.correctRow}-${p.correctCol}`) {
@@ -247,7 +230,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
 
       setMovesCount((m) => m + 1);
       
-      // Se encaixou a peça na posição certa agora, toca som de encaixe
       const currentPiece = updated.find((p) => p.id === pieceId);
       const [_, targetRow, targetCol] = cellId.split('-').map(Number);
       if (currentPiece && currentPiece.correctRow === targetRow && currentPiece.correctCol === targetCol) {
@@ -256,7 +238,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
 
       setMatchedCount(matches);
 
-      // Checa vitória
       if (matches === totalPieces) {
         setIsCompleted(true);
         if (timerRef.current) clearInterval(timerRef.current);
@@ -267,7 +248,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
     });
   };
 
-  // Mover peça de volta para o pool
   const movePieceToPool = (pieceId: string) => {
     setPieces((prevPieces) => {
       const updated = prevPieces.map((p) => {
@@ -290,7 +270,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
     });
   };
 
-  // --- INTERAÇÃO POR CLIQUE (ESSENCIAL PARA TOQUE / CELULAR) ---
+  // --- INTERAÇÃO POR CLIQUE ---
   const handlePieceClick = (e: React.MouseEvent, pieceId: string, isPieceLocked: boolean) => {
     e.stopPropagation();
     if (isPieceLocked || isCompleted) return;
@@ -298,7 +278,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
     startTimer();
 
     if (selectedPieceId === pieceId) {
-      // Desmarca se clicar na mesma peça
       setSelectedPieceId(null);
     } else {
       setSelectedPieceId(pieceId);
@@ -310,7 +289,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
     const targetCellId = `slot-${row}-${col}`;
 
     if (selectedPieceId) {
-      // Mover a peça selecionada para essa célula
       movePieceToCell(selectedPieceId, targetCellId);
       setSelectedPieceId(null);
     }
@@ -324,8 +302,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
   };
 
   // --- GERAÇÃO E DOWNLOAD STANDALONE HTML ---
-  const handleDownloadStandalone = () => {
-    // Label legível da dificuldade
+  const getGeneratedCode = () => {
     let label = 'Fácil';
     if (settings.difficulty === 'facil') label = 'Fácil';
     if (settings.difficulty === 'medio') label = 'Médio';
@@ -334,7 +311,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
       ? settings.completionMessage.trim()
       : undefined;
 
-    const htmlContent = generateStandaloneHTML(
+    return generateStandaloneHTML(
       imageUrl,
       rows,
       cols,
@@ -344,7 +321,10 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
       settings.showGuideImage,
       customMsg
     );
+  };
 
+  const handleDownloadStandalone = () => {
+    const htmlContent = getGeneratedCode();
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -354,6 +334,15 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const currentOrigin = typeof window !== 'undefined' ? window.location.href.split('#')[0] : '';
+  const iframeEmbedCode = `<iframe src="${currentOrigin}" width="100%" height="720" style="border:none; border-radius:16px; overflow:hidden; max-width:100%; box-shadow:0 4px 12px rgba(0,0,0,0.08);" allow="autoplay" loading="lazy"></iframe>`;
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedEmbed(true);
+    setTimeout(() => setCopiedEmbed(false), 2500);
   };
 
   return (
@@ -368,7 +357,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
           <ArrowLeft size={16} /> Voltar para Ajustes
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Botão Resolver (Ajuda/Demonstração) */}
           <button
             onClick={autoSolve}
@@ -401,6 +390,14 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
             <RotateCcw size={14} /> Reiniciar
           </button>
 
+          {/* Botão Código Embed */}
+          <button
+            onClick={() => setShowEmbedModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-xs font-bold border border-sky-200 transition-all cursor-pointer"
+          >
+            <Code2 size={14} /> Código Embed
+          </button>
+
           {/* Botão Exportar Standalone */}
           <button
             onClick={handleDownloadStandalone}
@@ -410,8 +407,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
           </button>
         </div>
       </div>
-
-
 
       {/* Grid Principal do Jogo */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -433,11 +428,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
               {Array.from({ length: rows }).map((_, r) =>
                 Array.from({ length: cols }).map((_, c) => {
                   const cellId = `slot-${r}-${c}`;
-                  
-                  // Encontrar a peça posicionada nesta célula (se houver)
                   const matchedPiece = pieces.find((p) => p.currentCell === cellId);
-                  
-                  // Verificar se a peça está no local correto (para travar)
                   const isCorrect = matchedPiece
                     ? matchedPiece.correctRow === r && matchedPiece.correctCol === c
                     : false;
@@ -458,7 +449,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
                         dragOverCellId === cellId ? 'border-sky-500 bg-sky-500/10' : 'bg-slate-200/20'
                       }`}
                     >
-                      {/* Se há uma peça colocada nesta célula */}
                       {matchedPiece && (
                         <div
                           draggable={!isCorrect}
@@ -474,7 +464,6 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
                             selectedPieceId === matchedPiece.id ? 'outline-3 outline-sky-400 outline-offset-[-3px] ring-4 ring-sky-500/20 scale-[0.98] shadow-lg' : ''
                           }`}
                         >
-                          {/* Ícone discreto de travado quando correto */}
                           {isCorrect && (
                             <div className="absolute bottom-1 right-1 bg-emerald-500/95 text-white w-4.5 h-4.5 flex items-center justify-center rounded-full shadow border border-emerald-600/20 pointer-events-none">
                               <Check size={11} strokeWidth={3} />
@@ -488,7 +477,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
               )}
             </div>
 
-            {/* Imagem de Guia em Marca d'Água por Baixo (Apenas como ajuda se ativado) */}
+            {/* Imagem de Guia em Marca d'Água por Baixo */}
             <div
               className="absolute inset-3 pointer-events-none rounded-xl bg-cover bg-center transition-opacity duration-300"
               style={{
@@ -541,10 +530,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
 
         {/* Lado Direito: Estoque de Peças Livres e Opções Rápidas (5 Colunas) */}
         <div className="lg:col-span-5 space-y-6">
-          
-          {/* Estoque de Peças */}
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col gap-4">
-            {/* Container do Pool de Peças */}
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDropOnPool}
@@ -552,7 +538,7 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
               className="flex flex-wrap gap-2.5 p-4 min-h-[160px] max-h-[300px] overflow-y-auto bg-slate-50 rounded-2xl border border-slate-200 justify-start content-start items-start shadow-inner"
             >
               {pieces.filter((p) => p.currentCell === null).length === 0 ? (
-                <div className="text-center p-6 space-y-2">
+                <div className="text-center p-6 space-y-2 w-full">
                   <span className="text-2xl">🎉</span>
                   <p className="text-xs font-semibold text-slate-500">Todas as peças estão no tabuleiro!</p>
                   <p className="text-[10px] text-slate-400">Ordene-as para resolver o desafio.</p>
@@ -584,11 +570,84 @@ export default function PuzzleBoard({ imageUrl, settings, onBack }: PuzzleBoardP
               )}
             </div>
           </div>
-
         </div>
       </div>
 
+      {/* Modal de Código Embed com Isolamento */}
+      <AnimatePresence>
+        {showEmbedModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 bg-sky-100 text-sky-700 rounded-xl flex items-center justify-center font-bold">
+                    <Code2 size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">Código de Incorporação (Embed Seguro)</h3>
+                    <p className="text-xs text-slate-500">100% isolado — seguro para Google Sites, Moodle, WordPress, Notion, etc.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowEmbedModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
+              {/* Informação sobre Isolamento */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <Check size={14} className="text-emerald-600" /> Isolamento Completo Garantido
+                </p>
+                <p className="text-emerald-700 leading-relaxed">
+                  O código HTML e os scripts utilizam escopo fechado (IIFE), identificadores únicos e estilos CSS encapsulados. Ele não conflita com os scripts do site hospedeiro e nem é quebrado por estilos externos.
+                </p>
+              </div>
+
+              {/* Opção 1: iFrame Embed */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>Opção 1: Tag iFrame (Recomendado para CMS, Moodle, Google Sites)</span>
+                  {copiedEmbed && (
+                    <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                      <Check size={12} /> Copiado!
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <pre className="bg-slate-900 text-slate-100 p-3 rounded-xl text-xs font-mono overflow-x-auto select-all leading-relaxed">
+                    {iframeEmbedCode}
+                  </pre>
+                  <button
+                    onClick={() => copyToClipboard(iframeEmbedCode)}
+                    className="absolute right-2 top-2 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <Copy size={13} /> Copiar
+                  </button>
+                </div>
+              </div>
+
+              {/* Opção 2: Baixar arquivo HTML autônomo */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-500 font-medium">Ou salve o arquivo completo para rodar offline:</span>
+                <button
+                  onClick={handleDownloadStandalone}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Download size={14} /> Baixar HTML Isolado
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
